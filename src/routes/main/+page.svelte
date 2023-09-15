@@ -367,6 +367,7 @@
             >
               {localize(product.product.group.name)}
             </a>
+            {product.json}
             <span class="flex-none block h-2" />
             <div
               class="min-w-0 max-w-full w-full flex flex-row items-center justify-start"

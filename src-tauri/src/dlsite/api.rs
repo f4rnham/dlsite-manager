@@ -1,10 +1,12 @@
-use crate::application_error::{Error, Result};
+use crate::{application_error::{Error, Result}, storage::product::Product};
 use chrono::{DateTime, Utc};
 use reqwest::ClientBuilder;
 use reqwest_cookie_store::{CookieStore, CookieStoreMutex};
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 use std::{collections::HashMap, fmt::Display, sync::Arc};
 use strum_macros::EnumString;
+
+use log::error;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct DLsiteProductList {
@@ -286,8 +288,8 @@ pub struct DLsiteProductDetail {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct DLsiteProductDetailImage {
-    pub file_name: String,
-    pub file_size: String,
+    //pub file_name: String,
+    //pub file_size: String,
     pub url: String,
 }
 
@@ -382,26 +384,50 @@ pub async fn get_product(
 }
 
 pub async fn get_product_details(
-    cookie_store: Arc<CookieStoreMutex>,
+    //cookie_store: Arc<CookieStoreMutex>,
     product_id: impl AsRef<str>,
 ) -> Result<Vec<DLsiteProductDetail>> {
-    let client = ClientBuilder::new()
-        .cookie_store(true)
-        .cookie_provider(cookie_store)
-        .build()?;
-    let response = client
-        .get(format!(
-            "https://www.dlsite.com/maniax/api/=/product.json?workno={}",
-            product_id.as_ref()
-        ))
-        .send()
-        .await?;
+    Ok(get_product_details2(product_id).await?.0)
+}
 
+pub async fn get_product_details2(
+    //cookie_store: Arc<CookieStoreMutex>,
+    product_id: impl AsRef<str>,
+) -> Result<(Vec<DLsiteProductDetail>, String)> {
+    let text_res = Product::get_json(product_id.as_ref());
+    let text_res2 = match text_res {
+        Err(_err) => {
+            let client = ClientBuilder::new()
+            //.cookie_store(true)
+            //.cookie_provider(cookie_store)
+            .build()?;
+            let response = client
+                .get(format!(
+                    "https://www.dlsite.com/maniax/api/=/product.json?workno={}",
+                    product_id.as_ref()
+                ))
+                .send()
+                .await?;
+    
+            error!("new json {}", product_id.as_ref());
+            response.text().await
+        }
+        Ok(ok) => {
+            error!("db json {}", product_id.as_ref());
+            Ok(ok)
+        }
+    };
+    
+    let text = Box::new(text_res2?);
     // The body of the response will be a valid json if the login has been succeed.
-    match response.json::<Vec<DLsiteProductDetail>>().await {
-        Ok(details) => Ok(details),
+    match serde_json::from_str::<Vec<DLsiteProductDetail>>(text.as_ref()) {
+        Ok(details) => {
+            //error!("json {} = {}", product_id.as_ref(), text);
+            Product::insert_json(product_id.as_ref(), text.as_ref())?;
+            Ok((details, *text))
+        }
         Err(err) => {
-            println!("{:#?}", err);
+            error!("{:#?}", err);
             Err(Error::DLsiteNotAuthenticated)
         }
     }

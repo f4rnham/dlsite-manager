@@ -21,6 +21,7 @@ pub struct Product {
     pub download: Option<ProductDownload>,
     pub created_at: DateTime<Utc>,
     pub updated_at: DateTime<Utc>,
+    pub json: String
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -162,6 +163,17 @@ impl<'stmt> TryFrom<&'stmt Row<'stmt>> for Product {
             },
             created_at: row.get("created_at")?,
             updated_at: row.get("updated_at")?,
+            json: match serde_json::from_str::<Vec<serde_json::Value>>(&(row.get::<_, String>("pjson")?)) {
+                    Ok(b) => {
+                        format!("{} | {} MB",
+                            b[0].get("dl_format").unwrap().to_string(),
+                            b[0].get("contents_file_size").unwrap().as_i64().unwrap() / 1024 / 1024,
+                        )
+                    }
+                    Err(_e) => {
+                        String::from("")
+                    }
+                },
         })
     }
 }
@@ -224,6 +236,14 @@ CREATE TABLE IF NOT EXISTS product_downloads (
     product_id TEXT NOT NULL UNIQUE,
     path TEXT NOT NULL,
     created_at INTEGER NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    FOREIGN KEY(product_id) REFERENCES products(product_id) ON UPDATE CASCADE ON DELETE CASCADE
+);
+
+CREATE TABLE IF NOT EXISTS product_jsons (
+    id INTEGER PRIMARY KEY NOT NULL,
+    product_id TEXT NOT NULL UNIQUE,
+    json TEXT NOT NULL,
 
     FOREIGN KEY(product_id) REFERENCES products(product_id) ON UPDATE CASCADE ON DELETE CASCADE
 );"
@@ -309,11 +329,13 @@ SELECT
     product.updated_at,
     download.id as download_id,
     download.path as download_path,
-    download.created_at as download_created_at
+    download.created_at as download_created_at,
+    jsons.json as pjson
 FROM indexed_products
 INNER JOIN products AS product ON product.product_id = indexed_products.product_id
 INNER JOIN accounts AS account ON account.id = product.account_id
 LEFT JOIN product_downloads as download ON download.product_id = indexed_products.product_id
+LEFT JOIN product_jsons as jsons ON jsons.product_id = indexed_products.product_id
 WHERE {}
 GROUP BY product.product_id
 ORDER BY {}",
@@ -340,6 +362,23 @@ WHERE product_id = ?1",
             })
             .optional()?)
     }
+
+    pub fn get_json(product_id: impl AsRef<str>) -> Result<String> {
+        Ok(use_application()
+            .connection()
+            .prepare(
+                "
+SELECT
+    json
+FROM product_jsons
+WHERE product_id = ?1",
+            )?
+            .query_row(params![product_id.as_ref()], |row| {
+                row.get::<_, String>("json")
+            })?)
+    }
+
+    
 
     pub fn insert_all(mut products: impl Iterator<Item = InsertedProduct>) -> Result<()> {
         let mut connection = use_application().connection();
@@ -489,6 +528,28 @@ INSERT INTO product_downloads (
         } else {
             Err(Error::DatabaseCreatedItemNotAccessible)
         }
+    }
+
+    pub fn insert_json(
+        product_id: impl AsRef<str>,
+        json: impl AsRef<str>,
+    ) -> Result<()> {
+        use_application()
+            .connection()
+            .prepare(
+                "
+REPLACE INTO product_jsons (
+    product_id,
+    json
+) VALUES (
+    ?1,
+    ?2
+)
+            ",
+            )?
+            .insert(params![product_id.as_ref(), json.as_ref()])?;
+
+        Ok(())
     }
 
     pub fn remove_all() -> Result<()> {

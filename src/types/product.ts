@@ -5,6 +5,7 @@ export interface Product {
   account: Account;
   product: DLsiteProduct;
   download?: ProductDownload;
+  json: string;
 }
 
 export interface ProductDownload {

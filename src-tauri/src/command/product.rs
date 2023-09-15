@@ -1,7 +1,7 @@
 use super::get_product_download_path;
 use crate::{
     application_error::{Error, Result},
-    dlsite::{download_product, remove_downloaded_product},
+    dlsite::{download_product, remove_downloaded_product, api},
     storage::product::{Product, ProductDownload, ProductQuery},
     window::{MainWindow, WindowInfoProvider},
 };
@@ -22,7 +22,14 @@ pub struct ProductDownloadEndEvent<'s> {
 
 #[tauri::command]
 pub async fn product_list_products(query: Option<ProductQuery>) -> Result<Vec<Product>> {
-    Ok(Product::list_all(&query.unwrap_or_default()).unwrap())
+    let res = Product::list_all(&query.unwrap_or_default()).unwrap();
+    for a in &res {
+        if a.json == String::from("") {
+            api::get_product_details2(&a.product.id).await?;
+        }
+    }
+
+    Ok(res)
 }
 
 #[tauri::command]

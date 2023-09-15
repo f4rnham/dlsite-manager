@@ -27,6 +27,8 @@ tauri = { version = "1.4", features = ["dialog", "shell-open"] }
 thiserror = { version = "1" }
 zip-extract = { git = "https://github.com/AcrylicShrimp/zip-extract", tag="v1.0.1", features = ["deflate"] }
 unrar = { version = "0.5" }
+log = "^0.4"
+tauri-plugin-log = { git = "https://github.com/tauri-apps/plugins-workspace", branch = "v1" }
 
 [features]
 # by default Tauri runs in production mode

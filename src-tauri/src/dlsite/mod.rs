@@ -97,7 +97,7 @@ async fn get_product_details_and_cookie_store(
         cookie_store: Arc<CookieStoreMutex>,
     ) -> Result<(Vec<DLsiteProductDetail>, Arc<CookieStoreMutex>)> {
         Ok((
-            api::get_product_details(cookie_store.clone(), product_id).await?,
+            api::get_product_details(/*cookie_store.clone(),*/ product_id).await?,
             cookie_store,
         ))
     }

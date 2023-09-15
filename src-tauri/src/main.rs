@@ -16,6 +16,8 @@ use command::CommandProvider;
 use menu::{ApplicationMenu, MenuProvider};
 use tauri::RunEvent;
 
+use tauri_plugin_log::LogTarget;
+
 fn main() {
     let app = tauri::Builder::default()
         .menu(ApplicationMenu::create_menu())
@@ -27,6 +29,11 @@ fn main() {
             Ok(())
         })
         .attach_commands()
+        .plugin(tauri_plugin_log::Builder::default().targets([
+            LogTarget::LogDir,
+            LogTarget::Stdout,
+            LogTarget::Webview,
+        ]).build())
         .build(tauri::generate_context!())
         .expect("error while running application");
 
