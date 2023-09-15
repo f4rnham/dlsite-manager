@@ -30,6 +30,8 @@
 
   import { BgCssAge, BgCssType, DisplayTypeString } from "./product-values";
 
+  import { trace, info, error, attachConsole } from "tauri-plugin-log-api";
+
   type Age = "" | DLsiteProductAge;
   type Type = "" | DLsiteProductType;
   type DownloadState = "" | DLsiteProductDownloadState;
@@ -45,8 +47,10 @@
   let updating: boolean = false;
   let progress: number = 0;
   let progressTotal: number = 0;
+  let autoDownload: boolean = false;
 
   onMount(async () => {
+    const detach = await attachConsole();
     query = data.query.query.query ?? "";
     queryAge = data.query.query.age ?? "";
     queryType = data.query.query.ty ?? "";
@@ -87,6 +91,16 @@
 
         productDownloads.delete(event.payload.product_id);
         productDownloads = productDownloads;
+        
+        if (autoDownload == true && productDownloads.size < 3 && products.length > 0) {
+          error("auto-download next");
+          if (products[0].download?.id === undefined) {
+            requestDownload(products[0], true);
+          } else {
+            error("0 already dl'd?");
+          }
+        }
+
         filterProducts(products);
       }),
       appWindow.listen<string>("download-invalid", (event) => {
@@ -192,6 +206,9 @@
         products = unfilteredProducts;
         break;
     }
+    // 9 = .dlst
+    // 17 = web only, no dl files
+    products = products.filter((product) => !product.json.startsWith("9") && !product.json.startsWith("17"));
   }
 
   async function requestDownload(
@@ -241,12 +258,7 @@
       class="underline text-4/5">Visit Github</a
     >
     <span class="w-4" />
-    <a
-      href="https://www.dlsite.com/index.html"
-      target="_blank"
-      rel="noreferrer"
-      class="underline text-4/5">Visit DLsite</a
-    >
+    <span class="text-4/5">{products.length}</span>
   </div>
 </nav>
 <span class="block h-4" />
@@ -260,6 +272,7 @@
   </div>
   <span class="block h-2" />
   <div class="px-3 py-2 bg-1/5 rounded-lg">
+    <input type="checkbox" bind:checked={autoDownload} />
     <LabeledSelect label="Age" bind:value={queryAge} on:change={setQueryAge}>
       <option value="" selected>-</option>
       <option value="All">All</option>
