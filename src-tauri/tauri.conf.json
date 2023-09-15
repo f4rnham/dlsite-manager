@@ -17,7 +17,7 @@
       }
     },
     "bundle": {
-      "active": true,
+      "active": false,
       "category": "Utility",
       "copyright": "",
       "deb": {
