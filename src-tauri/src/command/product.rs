@@ -24,7 +24,7 @@ pub struct ProductDownloadEndEvent<'s> {
 pub async fn product_list_products(query: Option<ProductQuery>) -> Result<Vec<Product>> {
     let res = Product::list_all(&query.unwrap_or_default()).unwrap();
     for a in &res {
-        if a.json == String::from("") {
+        if a.json == String::from("ERR1") {
             api::get_product_details2(&a.product.id).await?;
         }
     }

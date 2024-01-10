@@ -10,8 +10,11 @@ use crate::{
 use chrono::{DateTime, Utc};
 use rusqlite::{params, params_from_iter, OptionalExtension, Row};
 use serde::{Deserialize, Serialize};
+use serde_json::{json};
 use std::{path::PathBuf, str::FromStr};
 use strum_macros::{EnumString, IntoStaticStr};
+
+use log::error;
 
 #[derive(Debug, Clone, Serialize)]
 pub struct Product {
@@ -93,6 +96,27 @@ impl<'stmt> TryFrom<&'stmt Row<'stmt>> for Product {
     type Error = rusqlite::Error;
 
     fn try_from(row: &'stmt Row<'stmt>) -> std::result::Result<Self, Self::Error> {
+        let dbdata = match row.get::<_, String>("pjson") {
+            Ok(data) => data,
+            Err(_) => String::from("[]"),
+        };
+        let data = match serde_json::from_str::<Vec<serde_json::Value>>(dbdata.as_ref()) {
+            Ok(b) => {
+                if b.len() == 0 {
+                    String::from("ERR1")
+                } else {
+                    format!("{} | {} MB",
+                        b[0].get("dl_format").unwrap_or(&json!("ERR1")).to_string(),
+                        b[0].get("contents_file_size").unwrap_or(&json!(0))
+                            .as_i64().unwrap_or(0) / 1024 / 1024,
+                    )
+                }
+            }
+            Err(_e) => {
+                String::from("ERR2")
+            }
+        };
+
         Ok(Self {
             id: row.get("id")?,
             account: Account {
@@ -163,17 +187,7 @@ impl<'stmt> TryFrom<&'stmt Row<'stmt>> for Product {
             },
             created_at: row.get("created_at")?,
             updated_at: row.get("updated_at")?,
-            json: match serde_json::from_str::<Vec<serde_json::Value>>(&(row.get::<_, String>("pjson")?)) {
-                    Ok(b) => {
-                        format!("{} | {} MB",
-                            b[0].get("dl_format").unwrap().to_string(),
-                            b[0].get("contents_file_size").unwrap().as_i64().unwrap() / 1024 / 1024,
-                        )
-                    }
-                    Err(_e) => {
-                        String::from("")
-                    }
-                },
+            json: data,
         })
     }
 }

@@ -208,7 +208,7 @@
     }
     // 9 = .dlst
     // 17 = web only, no dl files
-    products = products.filter((product) => !product.json.startsWith("9") && !product.json.startsWith("17"));
+    products = products.filter((product) => /*!product.json.startsWith("9") &&*/ !product.json.startsWith("17"));
   }
 
   async function requestDownload(

@@ -39,7 +39,7 @@ default = ["custom-protocol"]
 custom-protocol = ["tauri/custom-protocol"]
 
 [profile.release]
-# panic = "abort" # Strip expensive panic clean-up logic
+panic = "abort" # Strip expensive panic clean-up logic
 codegen-units = 256
 lto = false
 opt-level = 0

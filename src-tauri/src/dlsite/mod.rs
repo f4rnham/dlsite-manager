@@ -18,6 +18,7 @@ use std::{
     time::{Duration, Instant},
 };
 use unrar::Archive;
+use log::error;
 
 static PAGE_LIMIT: usize = 50;
 
@@ -128,6 +129,8 @@ pub async fn update_product(mut on_progress: impl FnMut(usize, usize) -> Result<
         if new_product_count <= prev_product_count {
             continue;
         }
+
+        log::error!("Products update {} -> {}", prev_product_count, new_product_count);
 
         total_progress += new_product_count - prev_product_count;
         details.push((
